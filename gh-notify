@@ -355,6 +355,26 @@ mark_individual_read() {
     fi
 }
 
+kevs_function() {
+# echo all args passed to the function
+local issue_number=$1
+local repo_full_name=$2
+
+# issue lives in $HOME/git-notes/$repo_full_name/$issue_number
+# if it doesn't exist, create it
+if [ ! -f $HOME/git-notes/$repo_full_name/$issue_number.md ]; then
+    gh issue view --repo $repo_full_name $issue_number --json url,title,author,number,state,labels,createdAt \
+    -t '# {{.title}}{{printf "\n"}}{{.url}}{{printf "\n"}}#{{.number}} - {{.author.name}}{{printf "\n"}}{{.state}} - {{.createdAt}}{{printf "\n"}}{{.labels}}' \
+     > /tmp/issue.md
+    mkdir -p $HOME/git-notes/$repo_full_name
+    cp /tmp/issue.md $HOME/git-notes/$repo_full_name/$issue_number.md
+fi
+
+# open the issue in vim
+vim $HOME/git-notes/$repo_full_name/$issue_number.md > /dev/tty
+
+}
+
 select_notif() {
     declare -a less_args
     # The long option (--+…) for resetting the option to its default setting is broken in
@@ -374,6 +394,7 @@ select_notif() {
     export -f print_help_text print_notifs get_notifs
     export -f highlight_output open_in_browser view_notification
     export -f mark_all_read mark_individual_read
+    export -f kevs_function
     # The 'die' function is not exported because 'fzf' warns you about the error in
     # a failed 'print_notifs' call, but does not display the message.
 
@@ -395,6 +416,9 @@ select_notif() {
             --bind "enter:execute:view_notification --all_comments {} | less ${less_args[*]} >/dev/tty" \
             --bind "tab:toggle-preview+change-preview:view_notification {}" \
             --bind "?:toggle-preview+change-preview:print_help_text" \
+            --bind "shift-right:page-down" \
+            --bind "shift-left:page-up" \
+            --bind "ctrl-e:become(kevs_function {4} {5})" \
             --border horizontal \
             --color "border:dim" \
             --color "header:green:italic:dim" \
